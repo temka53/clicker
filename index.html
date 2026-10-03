@@ -6,7 +6,7 @@
 <title>Lucky Stars: Кликер</title>
 <style>
 :root{
-  --night:#14183f; --panel:#20265c; --gold:#ffc94a; --ink:#f4f1ff; --muted:#9aa0d4;
+  --night:#14183f; --glow:rgba(255,201,74,.45); --panel:#20265c; --gold:#ffc94a; --ink:#f4f1ff; --muted:#9aa0d4;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -19,7 +19,7 @@ header{text-align:center;padding:20px 16px 0}
 #rate{margin-top:6px;color:var(--muted);font-size:15px}
 main{flex:1;min-height:290px;display:flex;align-items:center;justify-content:center;width:100%;position:relative}
 #star{width:min(62vw,280px);height:min(62vw,280px);background:none;border:0;padding:0;cursor:pointer;
-  filter:drop-shadow(0 0 28px rgba(255,201,74,.45));transition:transform .08s}
+  filter:drop-shadow(0 0 28px var(--glow));transition:transform .08s}
 #star:active,#star.hit{transform:scale(.9) rotate(-4deg)}
 #star:focus-visible{outline:3px solid var(--ink);outline-offset:6px;border-radius:50%}
 .pop{position:absolute;font-weight:800;font-size:26px;color:var(--ink);pointer-events:none;
@@ -35,6 +35,10 @@ footer{width:100%;max-width:480px;padding:0 14px 16px;display:grid;gap:10px}
 .up:not(:disabled):active{border-color:var(--gold)}
 .gold{position:absolute;width:64px;height:64px;padding:0;border:0;background:none;cursor:pointer;filter:drop-shadow(0 0 14px #ffd54a);animation:pulse .7s ease-in-out infinite alternate}
 @keyframes pulse{to{transform:scale(1.18)}}
+#skins{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.sk{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--panel);color:var(--ink);border:2px solid transparent;border-radius:14px;padding:8px 2px;font:inherit;cursor:pointer}
+.sk small{font-size:11px;color:var(--muted)}
+.sk.on{border-color:var(--gold)}
 #ach{background:var(--panel);border-radius:16px;padding:14px 16px}
 #ach summary{cursor:pointer;font-weight:600}
 #achlist{margin-top:10px;display:grid;gap:6px;color:var(--muted)}
@@ -44,6 +48,7 @@ footer{width:100%;max-width:480px;padding:0 14px 16px;display:grid;gap:10px}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="rb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5f6d"/><stop offset=".25" stop-color="#ffc371"/><stop offset=".5" stop-color="#7bed9f"/><stop offset=".75" stop-color="#70a1ff"/><stop offset="1" stop-color="#b388ff"/></linearGradient></defs></svg>
 <header>
   <div id="score">0</div>
   <div id="rate"></div>
@@ -51,12 +56,13 @@ footer{width:100%;max-width:480px;padding:0 14px 16px;display:grid;gap:10px}
 <main>
   <button id="star" aria-label="Собрать звёзды">
     <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
-      <polygon points="50,6 62,36 94,38 69,58 78,90 50,72 22,90 31,58 6,38 38,36"
+      <polygon id="starpoly" points="50,6 62,36 94,38 69,58 78,90 50,72 22,90 31,58 6,38 38,36"
         fill="#ffc94a" stroke="#ffe08a" stroke-width="3" stroke-linejoin="round"/>
     </svg>
   </button>
 </main>
 <footer>
+  <div id="skins"></div>
   <button class="up" id="u1"></button>
   <button class="up" id="u2"></button>
   <button class="up" id="u3"></button>
@@ -68,13 +74,39 @@ footer{width:100%;max-width:480px;padding:0 14px 16px;display:grid;gap:10px}
 (function(){
   var s={score:0,tap:1,auto:0,total:0,boosts:0,boostUntil:0,taps:0,golds:0,ach:[]};
   try{var d=JSON.parse(localStorage.getItem("ls_clicker")||"null");if(d)s=d}catch(e){}
-  s.total=s.total||s.score;s.boosts=s.boosts||0;s.boostUntil=s.boostUntil||0;s.taps=s.taps||0;s.golds=s.golds||0;s.ach=s.ach||[];
+  s.total=s.total||s.score;s.boosts=s.boosts||0;s.boostUntil=s.boostUntil||0;s.taps=s.taps||0;s.golds=s.golds||0;s.ach=s.ach||[];s.skin=s.skin||"gold";
   var $=function(i){return document.getElementById(i)};
   var cost1=function(){return Math.floor(50*Math.pow(1.6,s.tap-1))};
   var cost2=function(){return Math.floor(100*Math.pow(1.7,s.auto))};
   var mult=function(){return Date.now()<s.boostUntil?2:1};
   var cost3=function(){return Math.floor(300*Math.pow(1.5,s.boosts))};
   var fmt=function(n){return Math.floor(n).toLocaleString("ru-RU")};
+  var SKINS=[
+    {id:"gold",name:"Золото",need:0,fill:"#ffc94a",stroke:"#ffe08a",glow:"rgba(255,201,74,.45)"},
+    {id:"ice",name:"Лёд",need:500,fill:"#6ec6ff",stroke:"#d4f0ff",glow:"rgba(110,198,255,.5)"},
+    {id:"rose",name:"Роза",need:2000,fill:"#ff7eb6",stroke:"#ffd3e8",glow:"rgba(255,126,182,.5)"},
+    {id:"mint",name:"Мята",need:5000,fill:"#5de0b0",stroke:"#c9fbe9",glow:"rgba(93,224,176,.5)"},
+    {id:"rainbow",name:"Радуга",need:10000,fill:"url(#rb)",stroke:"#ffffff",glow:"rgba(180,140,255,.55)"}
+  ];
+  var lastU=-1,skKey="";
+  function applySkin(){
+    var k=SKINS.filter(function(x){return x.id===s.skin})[0]||SKINS[0];
+    var pg=$("starpoly");pg.setAttribute("fill",k.fill);pg.setAttribute("stroke",k.stroke);
+    document.documentElement.style.setProperty("--glow",k.glow);
+  }
+  function skinsUI(){
+    var u=SKINS.filter(function(k){return s.total>=k.need}).length;
+    if(lastU>=0&&u>lastU)toast("🎨 Новый скин: "+SKINS[u-1].name);
+    lastU=u;
+    var key=u+":"+s.skin;
+    if(key===skKey)return;
+    skKey=key;
+    $("skins").innerHTML=SKINS.map(function(k){
+      var ok=s.total>=k.need;
+      return '<button class="sk'+(k.id===s.skin?' on':'')+'" data-id="'+k.id+'"><svg viewBox="0 0 100 100" width="26" height="26"><polygon points="50,6 62,36 94,38 69,58 78,90 50,72 22,90 31,58 6,38 38,36" fill="'+(ok?k.fill:'#555a8f')+'" stroke="'+(ok?k.stroke:'#777cb0')+'" stroke-width="5" stroke-linejoin="round"/></svg><small>'+(ok?k.name:'🔒 '+k.need)+'</small></button>';
+    }).join("");
+    applySkin();
+  }
   var ACH=[
     ["t100","100 тапов",function(){return s.taps>=100}],
     ["t1000","1 000 тапов",function(){return s.taps>=1000}],
@@ -84,10 +116,10 @@ footer{width:100%;max-width:480px;padding:0 14px 16px;display:grid;gap:10px}
     ["boost","Первый множитель ×2",function(){return s.boosts>=1}],
     ["gold","Поймал золотую звезду",function(){return s.golds>=1}]
   ];
-  function toast(x){var e=$("toast");e.textContent="🏆 "+x;e.className="show";clearTimeout(toast.t);toast.t=setTimeout(function(){e.className=""},3000)}
+  function toast(x){var e=$("toast");e.textContent=x;e.className="show";clearTimeout(toast.t);toast.t=setTimeout(function(){e.className=""},3000)}
   function check(){
     var ch=false;
-    ACH.forEach(function(a){if(s.ach.indexOf(a[0])<0&&a[2]()){s.ach.push(a[0]);toast("Достижение: "+a[1]);ch=true}});
+    ACH.forEach(function(a){if(s.ach.indexOf(a[0])<0&&a[2]()){s.ach.push(a[0]);toast("🏆 Достижение: "+a[1]);ch=true}});
     if(ch)save();
     $("ach").querySelector("summary").textContent="🏆 Достижения "+s.ach.length+"/"+ACH.length;
     $("achlist").innerHTML=ACH.map(function(a){return "<div>"+(s.ach.indexOf(a[0])>=0?"✅ ":"🔒 ")+a[1]+"</div>"}).join("");
@@ -95,6 +127,7 @@ footer{width:100%;max-width:480px;padding:0 14px 16px;display:grid;gap:10px}
   function save(){try{localStorage.setItem("ls_clicker",JSON.stringify(s))}catch(e){}}
   function render(){
     check();
+    skinsUI();
     $("score").textContent=fmt(s.score);
     $("rate").textContent="+"+(s.tap*mult())+" за тап"+(s.auto?", +"+(s.auto*mult())+" в секунду":"")+(mult()>1?" · ×2":"");
     $("u1").innerHTML="<span>Сильный тап<small>+1 звезда за тап</small></span><b>"+fmt(cost1())+"</b>";
@@ -118,6 +151,12 @@ footer{width:100%;max-width:480px;padding:0 14px 16px;display:grid;gap:10px}
   $("u1").onclick=function(){var c=cost1();if(s.score>=c){s.score-=c;s.tap++;save();render()}};
   $("u2").onclick=function(){var c=cost2();if(s.score>=c){s.score-=c;s.auto++;save();render()}};
   $("u3").onclick=function(){var c=cost3();if(s.score>=c&&Date.now()>=s.boostUntil){s.score-=c;s.boosts++;s.boostUntil=Date.now()+60000;save();render()}};
+  $("skins").addEventListener("click",function(e){
+    var b=e.target.closest("button");if(!b)return;
+    var k=SKINS.filter(function(x){return x.id===b.dataset.id})[0];
+    if(s.total<k.need){toast("🔒 Откроется при "+fmt(k.need)+" звёзд");return}
+    s.skin=k.id;skKey="";save();render();
+  });
   $("send").onclick=function(){save();location.href="https://t.me/LuckyStars111bot?start=score_"+Math.floor(s.total)};
   setInterval(function(){if(s.auto){var a=s.auto*mult();s.score+=a;s.total+=a;render()}},1000);
   setInterval(save,3000);
